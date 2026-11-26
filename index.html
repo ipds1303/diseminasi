@@ -41,7 +41,8 @@ header{
   padding:clamp(8px,1.3vh,16px) clamp(16px,1.6vw,30px);
   background:var(--panel);border-bottom:3px solid var(--call);
 }
-.brand{display:flex;align-items:baseline;gap:.6em;flex-wrap:wrap;min-width:0}
+.brand{display:flex;align-items:center;gap:.7em;flex-wrap:wrap;min-width:0}
+.brand img{height:clamp(30px,5.2vh,60px);width:auto;display:block}
 .brand h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,46px);line-height:1;letter-spacing:.02em;text-transform:uppercase}
 .brand p{color:var(--muted);font-size:clamp(14px,2.2vh,26px)}
 .right{display:flex;align-items:center;gap:clamp(12px,1.5vw,28px)}
@@ -55,6 +56,8 @@ body.idle .ctl{opacity:0;pointer-events:none}
   padding:7px 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;
 }
 .ctl button:hover{border-color:var(--call)}
+.ctl button:disabled{opacity:.5;cursor:progress}
+#btnSound{min-width:10.5em;text-align:center}   /* lebar tetap agar tombol lain tidak bergeser saat labelnya berubah */
 .ctl button[aria-pressed="true"]{background:var(--call);color:#1a1300;border-color:var(--call)}
 
 /* ---------- Isi ---------- */
@@ -145,12 +148,14 @@ dialog p.hint{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:1
 
 <header>
   <div class="brand">
+    <img id="logo" src="logo.png" alt="Logo BPS" onerror="this.remove()">
     <h1 id="title">Buku Tamu</h1>
     <p id="subtitle"></p>
   </div>
   <div class="right">
     <div class="ctl">
-      <button id="btnSound" type="button" aria-pressed="false">Suara: mati</button>
+      <button id="btnSync" type="button">Perbarui media</button>
+      <button id="btnSound" type="button" aria-pressed="false">Suara: klik layar</button>
       <button id="btnFull" type="button">Layar penuh</button>
       <button id="btnSet" type="button">Pengaturan</button>
     </div>
@@ -168,6 +173,7 @@ dialog p.hint{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:1
   <section class="side" aria-live="polite">
     <div class="sidehead"><span class="label">Antrian bulan ini</span><span class="month" id="month"></span></div>
     <div id="boxes" style="display:contents"></div>
+    <div class="status" id="mstatus"><i></i><span id="mstatusText"></span></div>
     <div class="status" id="status"><i></i><span id="statusText">Memuat…</span></div>
   </section>
 </main>
@@ -177,15 +183,16 @@ dialog p.hint{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:1
     <h2>Pengaturan layar</h2>
     <p class="hint">Google Sheet harus dibagikan dengan akses <b>Siapa saja yang memiliki link: Pelihat</b>. Layar hanya menampilkan nama, instansi, dan layanan.</p>
     <div class="f"><label for="sSheet">Link Google Sheet (buka tab jawaban formulir, lalu salin link-nya)</label><input id="sSheet" placeholder="https://docs.google.com/spreadsheets/d/…"></div>
-    <div class="two">
-      <div class="f"><label for="sMedia">Nama tab slideshow</label><input id="sMedia" placeholder="Media"></div>
-      <div class="f"><label for="sImg">Lama tampil gambar (detik)</label><input id="sImg" type="number" min="3" max="120"></div>
-    </div>
+    <div class="f"><label for="sDrive">Link folder Google Drive untuk foto dan video</label><input id="sDrive" placeholder="https://drive.google.com/drive/folders/…"></div>
+    <div class="f"><label for="sKey">Kunci API Google (untuk membaca isi folder; tersimpan di browser ini saja)</label><input id="sKey" autocomplete="off" spellcheck="false" placeholder="AIza…"></div>
     <div class="two">
       <div class="f"><label for="sTitle">Judul</label><input id="sTitle"></div>
       <div class="f"><label for="sSub">Subjudul</label><input id="sSub"></div>
     </div>
-    <div class="f"><label for="sRef">Periksa tamu baru tiap (detik)</label><input id="sRef" type="number" min="5" max="600"></div>
+    <div class="two">
+      <div class="f"><label for="sImg">Lama tampil gambar (detik)</label><input id="sImg" type="number" min="3" max="120"></div>
+      <div class="f"><label for="sRef">Periksa tamu baru tiap (detik)</label><input id="sRef" type="number" min="5" max="600"></div>
+    </div>
     <div class="acts">
       <button type="button" id="btnCancel">Batal</button>
       <button type="submit" class="primary">Simpan</button>
@@ -200,9 +207,13 @@ dialog p.hint{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:1
 const DEFAULTS = {
   // Link tab "Form Responses 1" (gid di ujung link menentukan tab yang dibaca)
   sheet: "https://docs.google.com/spreadsheets/d/1dqQ_wMYRRUzuMBP2x-tE-ydO-2bJpD1E_S-4z91Wto8/edit?gid=1430225765",
-  mediaTab: "Media",         // nama tab daftar gambar/video
+  // Folder Google Drive berisi foto dan video slideshow (dibagikan: siapa saja yang memiliki link)
+  driveFolder: "https://drive.google.com/drive/folders/1gJQyKnQtj-zRKvDnvfSYxsyLwdI7hk9R",
+  apiKey: "AIzaSyAV_aPzBqL9p2m0pLjtkb_5AyHHf6QOp24",   // kunci API Google (hanya baca; batasi ke situs ini dan Google Drive API)
+  mediaTab: "Media",         // cadangan: tab daftar media di Sheet, dipakai bila driveFolder kosong
   title: "Buku Tamu",
   subtitle: "BPS Kabupaten Solok",
+  welcome: "Selamat datang di BPS Kabupaten Solok",   // diucapkan tiap ada isian formulir baru
   imageSeconds: 8,
   refreshSeconds: 15
 };
@@ -222,7 +233,9 @@ let cfg = loadCfg();
 function loadCfg(){
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch(e){}
-  return Object.assign({}, DEFAULTS, saved);
+  const c = Object.assign({}, DEFAULTS, saved);
+  if (!c.apiKey) c.apiKey = DEFAULTS.apiKey;        // kunci yang ditulis di file ini berlaku di semua perangkat
+  return c;
 }
 function sheetRef(s){
   s = (s || "").trim();
@@ -303,7 +316,7 @@ function mapMedia(table){
   for (const r of table.rows || []) {
     const c = r.c || [];
     const url = cellText(c[iUrl]);
-    if (!/^https?:\/\//i.test(url)) continue;
+    if (!/^https?:\/\//i.test(url) && !/^[\w\-.\/ %()]+\.(jpe?g|png|gif|webp|mp4|webm|mov|m4v)$/i.test(url)) continue;
     const type = iType >= 0 ? cellText(c[iType]) : "";
     const sec = iDur >= 0 && c[iDur] ? parseFloat(c[iDur].v) : NaN;
     out.push(Object.assign(classify(url, type), {
@@ -326,7 +339,8 @@ function classify(url, type){
 }
 
 /* ---------- Kotak antrian ---------- */
-let guests = [], lastSeen = null, soundOn = false;
+let guests = [], lastSeen = null, soundOn = true, unlocked = false, unlockedAt = 0;
+const canSound = () => soundOn && unlocked;
 const pad = n => String(n).padStart(3, "0");
 const hhmm = d => d.toLocaleTimeString("id-ID", {hour:"2-digit", minute:"2-digit", hour12:false});
 
@@ -391,12 +405,11 @@ function chime(){
 function announce(g){
   const box = $("q-" + g.cat);
   box.classList.remove("ring"); void box.offsetWidth; box.classList.add("ring");
-  if (!soundOn) return;
+  if (!canSound()) return;
   chime();
   try {
     if ("speechSynthesis" in window) {
-      const k = CATS.find(x => x.key === g.cat);
-      const u = new SpeechSynthesisUtterance("Selamat datang, " + (g.name || "tamu") + (g.org ? ", dari " + g.org : "") + ". Layanan " + k.name + ".");
+      const u = new SpeechSynthesisUtterance(DEFAULTS.welcome);
       u.lang = "id-ID"; u.rate = 0.95;
       setTimeout(() => speechSynthesis.speak(u), 1300);
     }
@@ -411,9 +424,9 @@ const HELP_SLIDES = [
   note("Slideshow diatur dari Google Sheet",
        "Tambahkan tab bernama <code>Media</code> dengan kolom <code>URL</code>, <code>Jenis</code>, <code>Durasi</code>, dan <code>Keterangan</code>. Satu baris untuk satu gambar atau video."),
   note("Gambar dan foto",
-       "Tempel link gambar biasa atau link berbagi Google Drive di kolom <code>URL</code>. File Drive harus dibagikan ke siapa saja yang memiliki link."),
+       "Unggah foto ke folder <code>media</code> di GitHub lalu tulis <code>media/namafile.jpg</code> di kolom <code>URL</code>, atau tempel link berbagi Google Drive."),
   note("Video",
-       "Tempel link YouTube atau link file <code>.mp4</code>. Video diputar sampai selesai, lalu slide berikutnya tampil.")
+       "Tempel link YouTube, atau unggah file <code>.mp4</code> ke folder <code>media</code> dan tulis <code>media/namafile.mp4</code>. Video diputar sampai selesai.")
 ];
 
 function setSlides(list){
@@ -467,10 +480,10 @@ function showSlide(s, hold){
     img.alt = s.caption || "";
     img.onload = ok;
     img.onerror = () => { if (s.alt && img.src !== s.alt) img.src = s.alt; else slideFailed(el); };
-    img.src = s.url; el.append(img);
+    setSrc(s, el, u => { img.src = u; }); el.append(img);
   } else if (s.kind === "video") {
     const v = document.createElement("video");
-    v.autoplay = true; v.playsInline = true; v.muted = !soundOn; v.src = s.url;
+    v.autoplay = true; v.playsInline = true; v.muted = !canSound(); setSrc(s, el, u => { v.src = u; });
     v.onplaying = ok;
     v.onended = () => { if (el === curEl) nextSlide(); };
     v.onerror = () => slideFailed(el);
@@ -483,9 +496,9 @@ function showSlide(s, hold){
       if (el !== curEl) return;
       const player = new YT.Player(box, {
         width: "100%", height: "100%", videoId: s.id,
-        playerVars: { autoplay: 1, mute: soundOn ? 0 : 1, controls: 0, rel: 0, playsinline: 1 },
+        playerVars: { autoplay: 1, mute: canSound() ? 0 : 1, controls: 0, rel: 0, playsinline: 1 },
         events: {
-          onReady: e => { if (!soundOn) e.target.mute(); e.target.playVideo(); },
+          onReady: e => { if (!canSound()) e.target.mute(); e.target.playVideo(); },
           onStateChange: e => { if (e.data === 1) ok(); if (e.data === 0 && el === curEl) nextSlide(); },
           onError: () => slideFailed(el)
         }
@@ -502,7 +515,7 @@ function showSlide(s, hold){
   $("stage").append(el);
   const old = curEl; curEl = el;
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
-  if (old) { old.classList.remove("on"); setTimeout(() => old.remove(), 900); }
+  if (old) { old.classList.remove("on"); setTimeout(() => { old.remove(); if (old._url) URL.revokeObjectURL(old._url); }, 900); }
   $("caption").textContent = s.caption || "";
   const dots = $("dots"); dots.textContent = "";
   if (!hold && slides.length > 1 && slides.length <= 20) slides.forEach((_, i) => {
@@ -510,6 +523,109 @@ function showSlide(s, hold){
   });
   clearTimeout(slideTimer);
   if (!hold) slideTimer = setTimeout(nextSlide, ms);
+}
+
+/* ---------- Media dari folder Google Drive, disimpan di perangkat ---------- */
+const CACHE = "bukutamu-media-v1", MANIFEST = "bukutamu-media-daftar-v1", CK = "https://media.tersimpan/";
+let syncing = false;
+function folderId(s){
+  s = (s || "").trim();
+  const m = s.match(/\/folders\/([\w-]{15,})/) || s.match(/[?&]id=([\w-]{15,})/);
+  return m ? m[1] : (/^[\w-]{15,}$/.test(s) ? s : "");
+}
+function mstatus(cls, text){ $("mstatus").className = "status " + cls; $("mstatusText").textContent = text; }
+const dlUrl = id => "https://www.googleapis.com/drive/v3/files/" + id + "?alt=media&key=" + encodeURIComponent(cfg.apiKey);
+const toSlide = f => ({ kind: f.mime.indexOf("video/") === 0 ? "video" : "image", drive: { id: f.id, ck: f.ck }, seconds: 0, caption: "" });
+const DRIVE_HELP = [
+  note("Slideshow mengambil file dari Google Drive",
+       "Buka <code>Pengaturan</code>, isi kunci API Google, lalu tekan <code>Perbarui media</code>. Foto dan video akan disimpan di perangkat ini.")
+];
+
+async function driveSrc(s){
+  try {
+    if (window.caches) {
+      const r = await (await caches.open(CACHE)).match(s.drive.ck);
+      if (r) return { url: URL.createObjectURL(await r.blob()), blob: true };   // dari penyimpanan perangkat
+    }
+  } catch(e){}
+  return { url: dlUrl(s.drive.id), blob: false };                               // belum tersimpan: putar langsung dari Drive
+}
+function setSrc(s, el, apply){
+  if (!s.drive) { apply(s.url); return; }
+  driveSrc(s).then(r => {
+    if (el !== curEl) { if (r.blob) URL.revokeObjectURL(r.url); return; }
+    if (r.blob) el._url = r.url;
+    apply(r.url);
+  });
+}
+async function listFolder(folder){
+  let out = [], token = "";
+  do {
+    const u = "https://www.googleapis.com/drive/v3/files?q=" + encodeURIComponent("'" + folder + "' in parents and trashed=false") +
+              "&fields=" + encodeURIComponent("nextPageToken,files(id,name,mimeType,modifiedTime,size)") +
+              "&orderBy=name&pageSize=200&supportsAllDrives=true&includeItemsFromAllDrives=true&key=" + encodeURIComponent(cfg.apiKey) +
+              (token ? "&pageToken=" + encodeURIComponent(token) : "");
+    const r = await fetch(u);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ("HTTP " + r.status));
+    out = out.concat(j.files || []); token = j.nextPageToken || "";
+  } while (token);
+  return out.filter(f => /^(image|video)\//.test(f.mimeType || "") && !/heic|heif|tiff/i.test(f.mimeType));
+}
+/* Dipanggil oleh tombol "Perbarui media": baca isi folder, unduh hanya file yang belum tersimpan,
+   dan hapus dari penyimpanan file yang sudah tidak ada di folder. */
+async function syncDrive(){
+  if (syncing) return;
+  const folder = folderId(cfg.driveFolder);
+  if (!cfg.apiKey) { mstatus("err", "Kunci API Google belum diisi. Buka Pengaturan."); return; }
+  syncing = true; $("btnSync").disabled = true;
+  try {
+    mstatus("", "Memeriksa folder Google Drive…");
+    const files = (await listFolder(folder)).map(f => ({ id: f.id, name: f.name, mime: f.mimeType, ck: CK + f.id + "-" + Date.parse(f.modifiedTime) }));
+    let cache = null;
+    try { if (window.caches) cache = await caches.open(CACHE); } catch(e){}
+    if (cache && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    let fresh = 0, failed = 0;
+    if (cache) {
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        if (await cache.match(f.ck)) continue;
+        mstatus("", "Mengunduh " + (i + 1) + " dari " + files.length + ": " + f.name);
+        try {
+          const r = await fetch(dlUrl(f.id));
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          await cache.put(f.ck, r); fresh++;
+        } catch(e) { failed++; }
+      }
+      const keep = new Set(files.map(f => f.ck));
+      for (const req of await cache.keys()) if (!keep.has(req.url)) await cache.delete(req);
+    }
+    try { localStorage.setItem(MANIFEST, JSON.stringify({ folder, at: Date.now(), files })); } catch(e){}
+    setSlides(files.length ? files.map(toSlide)
+                           : [note("Folder Google Drive masih kosong", "Unggah foto atau video ke folder itu, lalu tekan <code>Perbarui media</code>.")]);
+    mstatus(failed || !cache ? "err" : "ok",
+      files.length + " file media, " + fresh + " baru diunduh" +
+      (failed ? ", " + failed + " gagal disimpan" : "") + (cache ? "" : ". Penyimpanan perangkat tidak tersedia") +
+      ". Diperiksa " + hhmm(new Date()));
+  } catch(e) {
+    mstatus("err", "Folder Google Drive tidak terbaca: " + e.message);
+  } finally {
+    syncing = false; $("btnSync").disabled = false;
+  }
+}
+function initDrive(){
+  let m = null;
+  try { m = JSON.parse(localStorage.getItem(MANIFEST) || "null"); } catch(e){}
+  if (m && m.folder === folderId(cfg.driveFolder) && m.files && m.files.length) {
+    setSlides(m.files.map(toSlide));                       // buka dari penyimpanan, tanpa mengunduh ulang
+    mstatus("ok", m.files.length + " file media dari penyimpanan perangkat. Terakhir diperiksa " +
+      new Date(m.at).toLocaleDateString("id-ID", {day:"numeric", month:"short"}) + " " + hhmm(new Date(m.at)));
+  } else if (cfg.apiKey) {
+    syncDrive();
+  } else {
+    setSlides(DRIVE_HELP);
+    mstatus("err", "Kunci API Google belum diisi. Buka Pengaturan.");
+  }
 }
 
 /* ---------- Jalan ---------- */
@@ -524,10 +640,12 @@ function start(){
   $("subtitle").textContent = cfg.subtitle;
   buildBoxes(); render();
 
-  const ref = sheetRef(cfg.sheet);
+  const ref = sheetRef(cfg.sheet), drive = folderId(cfg.driveFolder);
+  mstatus("", "");
+  if (drive) initDrive();
   if (!ref.id) {
     setStatus("err", "Link Google Sheet belum diisi. Buka Pengaturan.");
-    setSlides(HELP_SLIDES);
+    if (!drive) setSlides(HELP_SLIDES);
     return;
   }
   setStatus("", "Menghubungkan ke Google Sheet…");
@@ -547,26 +665,38 @@ function start(){
       if (!slides.length) setSlides(HELP_SLIDES);
     }
   };
-  loadGuests(); loadMedia();
+  loadGuests();
   timers.push(setInterval(loadGuests, Math.max(5, cfg.refreshSeconds) * 1000));
-  timers.push(setInterval(loadMedia, 120000));
+  if (!drive) { loadMedia(); timers.push(setInterval(loadMedia, 120000)); }
 }
 
 /* ---------- Tombol ---------- */
+/* Browser baru mengizinkan suara setelah layar diklik atau tombol ditekan satu kali. */
+function soundUI(){
+  const b = $("btnSound"), on = canSound();
+  b.setAttribute("aria-pressed", on);
+  b.textContent = !unlocked ? "Suara: klik layar" : soundOn ? "Suara: hidup" : "Suara: mati";
+  if (curMedia && curMedia.video) curMedia.video.muted = !on;
+  if (curMedia && curMedia.yt && curMedia.yt.mute) { on ? curMedia.yt.unMute() : curMedia.yt.mute(); }
+}
+function unlock(){
+  if (unlocked) return;
+  unlocked = true; unlockedAt = Date.now();
+  soundUI(); if (soundOn) chime();
+}
+["pointerdown", "keydown"].forEach(e => addEventListener(e, unlock));
 $("btnSound").addEventListener("click", () => {
+  if (Date.now() - unlockedAt < 800) return;      // klik pertama hanya mengaktifkan suara
   soundOn = !soundOn;
-  const b = $("btnSound");
-  b.setAttribute("aria-pressed", soundOn); b.textContent = soundOn ? "Suara: hidup" : "Suara: mati";
-  if (soundOn) chime();
-  if (curMedia && curMedia.video) curMedia.video.muted = !soundOn;
-  if (curMedia && curMedia.yt && curMedia.yt.mute) { soundOn ? curMedia.yt.unMute() : curMedia.yt.mute(); }
+  soundUI(); if (canSound()) chime();
 });
+$("btnSync").addEventListener("click", () => { if (folderId(cfg.driveFolder)) syncDrive(); else { slidesKey = ""; start(); } });
 $("btnFull").addEventListener("click", () => {
   const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   if (p && p.catch) p.catch(() => {});
 });
 $("btnSet").addEventListener("click", () => {
-  $("sSheet").value = cfg.sheet; $("sMedia").value = cfg.mediaTab;
+  $("sSheet").value = cfg.sheet; $("sDrive").value = cfg.driveFolder; $("sKey").value = cfg.apiKey;
   $("sTitle").value = cfg.title; $("sSub").value = cfg.subtitle;
   $("sImg").value = cfg.imageSeconds; $("sRef").value = cfg.refreshSeconds;
   $("dlg").showModal();
@@ -574,7 +704,7 @@ $("btnSet").addEventListener("click", () => {
 $("btnCancel").addEventListener("click", () => $("dlg").close());
 $("form").addEventListener("submit", () => {
   cfg = Object.assign({}, cfg, {
-    sheet: $("sSheet").value.trim(), mediaTab: $("sMedia").value.trim() || "Media",
+    sheet: $("sSheet").value.trim(), driveFolder: $("sDrive").value.trim(), apiKey: $("sKey").value.trim(),
     title: $("sTitle").value.trim() || DEFAULTS.title, subtitle: $("sSub").value.trim(),
     imageSeconds: Math.min(120, Math.max(3, parseFloat($("sImg").value) || DEFAULTS.imageSeconds)),
     refreshSeconds: Math.min(600, Math.max(5, parseFloat($("sRef").value) || DEFAULTS.refreshSeconds))
