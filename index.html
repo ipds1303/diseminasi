@@ -29,35 +29,33 @@
 html,body{height:100%}
 body{
   background:var(--bg);color:var(--text);font-family:var(--body);
-  display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;
+  display:grid;grid-template-rows:minmax(0,1fr);overflow:hidden;
 }
 body.idle{cursor:none}
 button,input{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--call);outline-offset:2px}
 
-/* ---------- Judul ---------- */
-header{
-  display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
-  padding:clamp(8px,1.3vh,16px) clamp(16px,1.6vw,30px);
-  background:var(--panel);border-bottom:3px solid var(--call);
+/* ---------- Judul (di kolom kanan) ---------- */
+.top{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding-bottom:var(--gap);border-bottom:3px solid var(--call);
 }
-.brand{display:flex;align-items:center;gap:.7em;flex-wrap:wrap;min-width:0}
-.brand img{height:clamp(30px,5.2vh,60px);width:auto;display:block}
-.brand h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,46px);line-height:1;letter-spacing:.02em;text-transform:uppercase}
-.brand p{color:var(--muted);font-size:clamp(14px,2.2vh,26px)}
-.right{display:flex;align-items:center;gap:clamp(12px,1.5vw,28px)}
-.clock{display:flex;align-items:baseline;gap:.7em;font-variant-numeric:tabular-nums}
-.clock b{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,46px);line-height:1}
-.clock span{color:var(--muted);font-size:clamp(12px,1.9vh,22px)}
-.ctl{display:flex;gap:8px;transition:opacity .4s}
+.brand{display:flex;align-items:center;gap:.7em;min-width:0}
+.brand img{height:clamp(34px,6.4vh,70px);width:auto;display:block;flex:none}
+.brand h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,44px);line-height:1;letter-spacing:.02em;text-transform:uppercase}
+.brand p{color:var(--muted);font-size:clamp(12px,1.9vh,22px);margin-top:.2em}
+.clock{text-align:right;font-variant-numeric:tabular-nums;margin-left:auto}
+.clock b{display:block;font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,44px);line-height:1}
+.clock span{display:block;color:var(--muted);font-size:clamp(11px,1.6vh,18px);margin-top:.2em}
+.ctl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;transition:opacity .4s}
 body.idle .ctl{opacity:0;pointer-events:none}
 .ctl button{
   background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
-  padding:7px 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;
+  padding:6px 4px;font-size:clamp(11px,1.5vh,14px);font-weight:500;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .ctl button:hover{border-color:var(--call)}
 .ctl button:disabled{opacity:.5;cursor:progress}
-#btnSound{min-width:10.5em;text-align:center}   /* lebar tetap agar tombol lain tidak bergeser saat labelnya berubah */
 .ctl button[aria-pressed="true"]{background:var(--call);color:#1a1300;border-color:var(--call)}
 
 /* ---------- Isi ---------- */
@@ -83,6 +81,18 @@ main{
 .dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.35)}
 .dots i.on{background:var(--call)}
 
+/* Tombol slideshow, muncul saat kursor berada di atas kotak slideshow */
+.nav{
+  position:absolute;left:50%;bottom:clamp(14px,3vh,32px);transform:translateX(-50%);z-index:3;
+  display:flex;gap:10px;padding:8px;border-radius:999px;background:rgba(6,22,44,.8);border:1px solid var(--line);
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.stagewrap:hover .nav,.nav:focus-within{opacity:1;pointer-events:auto}
+body.idle .nav:not(:focus-within){opacity:0;pointer-events:none}
+.nav button{width:clamp(44px,6vh,60px);height:clamp(44px,6vh,60px);border-radius:50%;border:0;background:var(--panel-2);display:grid;place-items:center;cursor:pointer}
+.nav button:hover{background:var(--call);color:#1a1300}
+.nav svg{width:46%;height:46%;fill:currentColor}
+
 /* ---------- Kotak antrian ---------- */
 .side{display:flex;flex-direction:column;gap:var(--gap);min-height:0;min-width:0}
 .sidehead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -98,7 +108,7 @@ main{
 .qn{
   display:flex;align-items:center;justify-content:center;gap:.18em;min-height:0;
   font-family:var(--display);font-weight:700;color:var(--call);line-height:.85;
-  font-size:clamp(56px,13.5vh,170px);font-variant-numeric:tabular-nums;
+  font-size:clamp(52px,11.5vh,150px);font-variant-numeric:tabular-nums;
 }
 .qn small{font-size:.14em;line-height:1.2;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;font-weight:600;align-self:flex-end;padding-bottom:1.1em}
 .qf{
@@ -146,33 +156,35 @@ dialog p.hint{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:1
 </head>
 <body>
 
-<header>
-  <div class="brand">
-    <img id="logo" src="logo.png" alt="Logo BPS" onerror="this.remove()">
-    <h1 id="title">Buku Tamu</h1>
-    <p id="subtitle"></p>
-  </div>
-  <div class="right">
-    <div class="ctl">
-      <button id="btnSync" type="button">Perbarui media</button>
-      <button id="btnSound" type="button" aria-pressed="false">Suara: klik layar</button>
-      <button id="btnFull" type="button">Layar penuh</button>
-      <button id="btnSet" type="button">Pengaturan</button>
-    </div>
-    <div class="clock"><span id="date"></span><b id="time">--.--</b></div>
-  </div>
-</header>
 
 <main>
   <section class="stagewrap" aria-label="Slideshow">
     <div id="stage"></div>
     <div class="dots" id="dots"></div>
     <div class="caption" id="caption"></div>
+    <div class="nav">
+      <button id="btnPrev" type="button" aria-label="Slide sebelumnya" title="Sebelumnya"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button id="btnPlay" type="button" aria-label="Jeda slideshow" title="Jeda"></button>
+      <button id="btnNext" type="button" aria-label="Slide berikutnya" title="Berikutnya"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5l11 7-11 7z"/></svg></button>
+    </div>
   </section>
 
-  <section class="side" aria-live="polite">
+  <section class="side">
+    <div class="top">
+      <div class="brand">
+        <img id="logo" src="logo.png" alt="Logo BPS" onerror="this.remove()">
+        <div><h1 id="title">Buku Tamu</h1><p id="subtitle"></p></div>
+      </div>
+      <div class="clock"><b id="time">--.--</b><span id="date"></span></div>
+    </div>
     <div class="sidehead"><span class="label">Antrian bulan ini</span><span class="month" id="month"></span></div>
-    <div id="boxes" style="display:contents"></div>
+    <div id="boxes" style="display:contents" aria-live="polite"></div>
+    <div class="ctl">
+      <button id="btnSync" type="button">Perbarui media</button>
+      <button id="btnSound" type="button" aria-pressed="false">Suara: klik layar</button>
+      <button id="btnFull" type="button">Layar penuh</button>
+      <button id="btnSet" type="button">Pengaturan</button>
+    </div>
     <div class="status" id="mstatus"><i></i><span id="mstatusText"></span></div>
     <div class="status" id="status"><i></i><span id="statusText">Memuat…</span></div>
   </section>
@@ -445,11 +457,31 @@ function slideFailed(el){
   }
   nextSlide();
 }
-function nextSlide(){
+let paused = false, held = false, curMs = 0;
+function stepSlide(d){
   clearTimeout(slideTimer);
   if (!slides.length) return;
-  si = (si + 1) % slides.length;
+  si = (((si + d) % slides.length) + slides.length) % slides.length;
   showSlide(slides[si]);
+}
+function nextSlide(){ stepSlide(1); }
+const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+const ICON_PLAY  = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg>';
+function setPaused(p){
+  paused = p;
+  const b = $("btnPlay");
+  b.innerHTML = p ? ICON_PLAY : ICON_PAUSE;
+  b.title = p ? "Putar" : "Jeda"; b.setAttribute("aria-label", p ? "Putar slideshow" : "Jeda slideshow");
+  clearTimeout(slideTimer);
+  const v = curMedia && curMedia.video, y = curMedia && curMedia.yt;
+  if (p) {
+    if (v) v.pause();
+    if (y && y.pauseVideo) y.pauseVideo();
+  } else {
+    if (v) { const q = v.play(); if (q && q.catch) q.catch(() => {}); }
+    if (y && y.playVideo) y.playVideo();
+    if (slides.length && !held) slideTimer = setTimeout(nextSlide, curMs);
+  }
 }
 function ensureYT(){
   if (ytReady) return ytReady;
@@ -483,7 +515,7 @@ function showSlide(s, hold){
     setSrc(s, el, u => { img.src = u; }); el.append(img);
   } else if (s.kind === "video") {
     const v = document.createElement("video");
-    v.autoplay = true; v.playsInline = true; v.muted = !canSound(); setSrc(s, el, u => { v.src = u; });
+    v.autoplay = !paused; v.playsInline = true; v.muted = !canSound(); setSrc(s, el, u => { v.src = u; });
     v.onplaying = ok;
     v.onended = () => { if (el === curEl) nextSlide(); };
     v.onerror = () => slideFailed(el);
@@ -496,9 +528,9 @@ function showSlide(s, hold){
       if (el !== curEl) return;
       const player = new YT.Player(box, {
         width: "100%", height: "100%", videoId: s.id,
-        playerVars: { autoplay: 1, mute: canSound() ? 0 : 1, controls: 0, rel: 0, playsinline: 1 },
+        playerVars: { autoplay: paused ? 0 : 1, mute: canSound() ? 0 : 1, controls: 0, rel: 0, playsinline: 1 },
         events: {
-          onReady: e => { if (!canSound()) e.target.mute(); e.target.playVideo(); },
+          onReady: e => { if (!canSound()) e.target.mute(); if (!paused) e.target.playVideo(); },
           onStateChange: e => { if (e.data === 1) ok(); if (e.data === 0 && el === curEl) nextSlide(); },
           onError: () => slideFailed(el)
         }
@@ -522,7 +554,8 @@ function showSlide(s, hold){
     const d = document.createElement("i"); if (i === si) d.className = "on"; dots.append(d);
   });
   clearTimeout(slideTimer);
-  if (!hold) slideTimer = setTimeout(nextSlide, ms);
+  curMs = ms; held = !!hold;
+  if (!hold && !paused) slideTimer = setTimeout(nextSlide, ms);
 }
 
 /* ---------- Media dari folder Google Drive, disimpan di perangkat ---------- */
@@ -691,6 +724,16 @@ $("btnSound").addEventListener("click", () => {
   soundUI(); if (canSound()) chime();
 });
 $("btnSync").addEventListener("click", () => { if (folderId(cfg.driveFolder)) syncDrive(); else { slidesKey = ""; start(); } });
+$("btnPrev").addEventListener("click", () => stepSlide(-1));
+$("btnNext").addEventListener("click", () => stepSlide(1));
+$("btnPlay").addEventListener("click", () => setPaused(!paused));
+addEventListener("keydown", e => {
+  if ($("dlg").open || /^(INPUT|BUTTON|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.key === "ArrowRight") stepSlide(1);
+  else if (e.key === "ArrowLeft") stepSlide(-1);
+  else if (e.key === " ") { e.preventDefault(); setPaused(!paused); }
+});
+setPaused(false);
 $("btnFull").addEventListener("click", () => {
   const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   if (p && p.catch) p.catch(() => {});
