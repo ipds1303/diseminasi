@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layar Buku Tamu BPS Kabupaten Solok</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Tata letak: strip judul tipis di atas, satu panggung slideshow besar di kiri,
+     tiga kotak antrian per layanan bertumpuk di kanan. Satu tema gelap untuk layar TV. */
+  --bg:#06162c;
+  --panel:#0c2749;
+  --panel-2:#113561;
+  --line:#23508c;
+  --text:#f3f7fd;
+  --muted:#9fb6d8;
+  --call:#ffc928;      /* warna nomor antrian */
+  --ok:#3ddc97;
+  --err:#ff7a6b;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow","Segoe UI",Arial,sans-serif;
+  --gap:clamp(10px,1.4vh,18px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--body);
+  display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;
+}
+body.idle{cursor:none}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--call);outline-offset:2px}
+
+/* ---------- Judul ---------- */
+header{
+  display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  padding:clamp(8px,1.3vh,16px) clamp(16px,1.6vw,30px);
+  background:var(--panel);border-bottom:3px solid var(--call);
+}
+.brand{display:flex;align-items:baseline;gap:.6em;flex-wrap:wrap;min-width:0}
+.brand h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,46px);line-height:1;letter-spacing:.02em;text-transform:uppercase}
+.brand p{color:var(--muted);font-size:clamp(14px,2.2vh,26px)}
+.right{display:flex;align-items:center;gap:clamp(12px,1.5vw,28px)}
+.clock{display:flex;align-items:baseline;gap:.7em;font-variant-numeric:tabular-nums}
+.clock b{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.8vh,46px);line-height:1}
+.clock span{color:var(--muted);font-size:clamp(12px,1.9vh,22px)}
+.ctl{display:flex;gap:8px;transition:opacity .4s}
+body.idle .ctl{opacity:0;pointer-events:none}
+.ctl button{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+  padding:7px 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;
+}
+.ctl button:hover{border-color:var(--call)}
+.ctl button[aria-pressed="true"]{background:var(--call);color:#1a1300;border-color:var(--call)}
+
+/* ---------- Isi ---------- */
+main{
+  display:grid;grid-template-columns:minmax(0,73fr) minmax(0,27fr);gap:var(--gap);
+  padding:var(--gap) clamp(16px,1.6vw,30px);min-height:0;
+}
+
+/* ---------- Slideshow ---------- */
+.stagewrap{position:relative;min-height:0;min-width:0;background:#000;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#stage{position:absolute;inset:0}
+.slide{position:absolute;inset:0;opacity:0;transition:opacity .8s;display:flex;align-items:center;justify-content:center;background:#000}
+.slide.on{opacity:1}
+.slide img,.slide video{width:100%;height:100%;object-fit:contain;display:block}
+.slide iframe,.slide .yt{width:100%;height:100%;border:0}
+.slide.note{background:linear-gradient(135deg,var(--panel-2),var(--panel));padding:6%;text-align:center;flex-direction:column;gap:1.2em}
+.slide.note h2{font-family:var(--display);font-weight:700;font-size:clamp(28px,6vh,72px);line-height:1.05;text-wrap:balance}
+.slide.note p{color:var(--muted);font-size:clamp(15px,2.6vh,30px);max-width:34em;line-height:1.4}
+.slide.note code{background:rgba(0,0,0,.35);padding:.1em .4em;border-radius:6px;color:var(--call);font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+.caption{position:absolute;left:0;right:0;bottom:0;padding:2.4em 1.4em 1em;background:linear-gradient(transparent,rgba(0,0,0,.8));font-size:clamp(14px,2.4vh,28px);font-weight:500;pointer-events:none}
+.caption:empty{display:none}
+.dots{position:absolute;top:14px;right:16px;display:flex;gap:6px;pointer-events:none}
+.dots i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.35)}
+.dots i.on{background:var(--call)}
+
+/* ---------- Kotak antrian ---------- */
+.side{display:flex;flex-direction:column;gap:var(--gap);min-height:0;min-width:0}
+.sidehead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.label{font-family:var(--display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-size:clamp(14px,2.2vh,24px)}
+.sidehead .month{font-family:var(--display);font-weight:700;color:var(--call);font-size:clamp(16px,2.6vh,30px);letter-spacing:.04em;text-transform:uppercase}
+.q{
+  flex:1;min-height:0;background:var(--panel);border:2px solid var(--line);border-radius:14px;overflow:hidden;
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+}
+.qh{background:var(--panel-2);padding:clamp(6px,1.1vh,12px) clamp(12px,1.1vw,20px);border-bottom:1px solid var(--line)}
+.qh b{display:block;font-family:var(--display);font-weight:700;font-size:clamp(20px,3.4vh,40px);line-height:1.05;letter-spacing:.04em;text-transform:uppercase}
+.qh span{display:block;color:var(--muted);font-size:clamp(11px,1.6vh,18px);line-height:1.25}
+.qn{
+  display:flex;align-items:center;justify-content:center;gap:.18em;min-height:0;
+  font-family:var(--display);font-weight:700;color:var(--call);line-height:.85;
+  font-size:clamp(56px,13.5vh,170px);font-variant-numeric:tabular-nums;
+}
+.qn small{font-size:.14em;line-height:1.2;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;font-weight:600;align-self:flex-end;padding-bottom:1.1em}
+.qf{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;
+  padding:clamp(6px,1vh,12px) clamp(12px,1.1vw,20px);border-top:1px solid var(--line);font-size:clamp(12px,1.8vh,20px);
+}
+.qf .last{min-width:0}
+.qf .last b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qf .last span{display:block;color:var(--muted);font-size:.86em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qf .today{background:var(--bg);border-radius:999px;padding:.25em .8em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.q.ring{animation:ring 1s ease-in-out 4}
+@keyframes ring{50%{background:#5a4300;border-color:var(--call)}}
+
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:clamp(11px,1.6vh,16px);line-height:1.3}
+.status i{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.status.ok i{background:var(--ok)}
+.status.err{color:var(--err)} .status.err i{background:var(--err)}
+
+/* ---------- Pengaturan ---------- */
+dialog{margin:auto;width:min(620px,calc(100% - 32px));background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:24px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{font-family:var(--display);font-size:28px;margin-bottom:6px}
+dialog p.hint{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:14px}
+.f{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.f label{font-size:13px;color:var(--muted)}
+.f input{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
+.acts button{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 16px;cursor:pointer;font-weight:500}
+.acts button.primary{background:var(--call);color:#1a1300;border-color:var(--call)}
+
+@media (max-width:900px){
+  html,body{height:auto} body{display:block;overflow:auto}
+  main{grid-template-columns:minmax(0,1fr)}
+  .stagewrap{aspect-ratio:16/9}
+  .q{flex:none}
+  .qn{padding:14px 0}
+  .two{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  .q.ring{animation:none;border-color:var(--call)}
+  .slide{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1 id="title">Buku Tamu</h1>
+    <p id="subtitle"></p>
+  </div>
+  <div class="right">
+    <div class="ctl">
+      <button id="btnSound" type="button" aria-pressed="false">Suara: mati</button>
+      <button id="btnFull" type="button">Layar penuh</button>
+      <button id="btnSet" type="button">Pengaturan</button>
+    </div>
+    <div class="clock"><span id="date"></span><b id="time">--.--</b></div>
+  </div>
+</header>
+
+<main>
+  <section class="stagewrap" aria-label="Slideshow">
+    <div id="stage"></div>
+    <div class="dots" id="dots"></div>
+    <div class="caption" id="caption"></div>
+  </section>
+
+  <section class="side" aria-live="polite">
+    <div class="sidehead"><span class="label">Antrian bulan ini</span><span class="month" id="month"></span></div>
+    <div id="boxes" style="display:contents"></div>
+    <div class="status" id="status"><i></i><span id="statusText">Memuat…</span></div>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <h2>Pengaturan layar</h2>
+    <p class="hint">Google Sheet harus dibagikan dengan akses <b>Siapa saja yang memiliki link: Pelihat</b>. Layar hanya menampilkan nama, instansi, dan layanan.</p>
+    <div class="f"><label for="sSheet">Link Google Sheet (buka tab jawaban formulir, lalu salin link-nya)</label><input id="sSheet" placeholder="https://docs.google.com/spreadsheets/d/…"></div>
+    <div class="two">
+      <div class="f"><label for="sMedia">Nama tab slideshow</label><input id="sMedia" placeholder="Media"></div>
+      <div class="f"><label for="sImg">Lama tampil gambar (detik)</label><input id="sImg" type="number" min="3" max="120"></div>
+    </div>
+    <div class="two">
+      <div class="f"><label for="sTitle">Judul</label><input id="sTitle"></div>
+      <div class="f"><label for="sSub">Subjudul</label><input id="sSub"></div>
+    </div>
+    <div class="f"><label for="sRef">Periksa tamu baru tiap (detik)</label><input id="sRef" type="number" min="5" max="600"></div>
+    <div class="acts">
+      <button type="button" id="btnCancel">Batal</button>
+      <button type="submit" class="primary">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* =====================================================================
+   PENGATURAN BAWAAN (berlaku di semua perangkat yang membuka halaman ini)
+   ===================================================================== */
+const DEFAULTS = {
+  // Link tab "Form Responses 1" (gid di ujung link menentukan tab yang dibaca)
+  sheet: "https://docs.google.com/spreadsheets/d/1dqQ_wMYRRUzuMBP2x-tE-ydO-2bJpD1E_S-4z91Wto8/edit?gid=1430225765",
+  mediaTab: "Media",         // nama tab daftar gambar/video
+  title: "Buku Tamu",
+  subtitle: "BPS Kabupaten Solok",
+  imageSeconds: 8,
+  refreshSeconds: 15
+};
+
+/* Tiga kotak antrian. Isi kolom "Layanan" dicocokkan dengan "cocok";
+   kotak terakhir menampung semua layanan lainnya. */
+const CATS = [
+  { key: "ppid",   name: "PPID",       desc: "Permintaan informasi dan dokumentasi",                cocok: /ppid/i },
+  { key: "konsul", name: "Konsultasi", desc: "Konsultasi, perpustakaan, dan rekomendasi statistik", cocok: /konsultasi|perpustakaan|rekomendasi/i },
+  { key: "umum",   name: "Umum",       desc: "Layanan lainnya",                                     cocok: null }
+];
+
+const $ = id => document.getElementById(id);
+const STORE = "bukutamu-solok-v2";
+let cfg = loadCfg();
+
+function loadCfg(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORE) || "{}"); } catch(e){}
+  return Object.assign({}, DEFAULTS, saved);
+}
+function sheetRef(s){
+  s = (s || "").trim();
+  const m = s.match(/\/d\/([\w-]{20,})/);
+  const id = m ? m[1] : (/^[\w-]{20,}$/.test(s) ? s : "");
+  const g = s.match(/[?#&]gid=(\d+)/);
+  return { id, gid: g ? g[1] : "" };
+}
+
+/* ---------- Jam ---------- */
+function tick(){
+  const d = new Date();
+  $("time").textContent = d.toLocaleTimeString("id-ID", {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false});
+  $("date").textContent = d.toLocaleDateString("id-ID", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+}
+setInterval(tick, 1000); tick();
+
+/* ---------- Baca Google Sheet (tanpa server, tanpa kunci API) ---------- */
+let cbSeq = 0;
+function gviz(id, where){
+  return new Promise((resolve, reject) => {
+    const cb = "__gv" + (++cbSeq) + "_" + Date.now();
+    const s = document.createElement("script");
+    const done = (fn, arg) => { clearTimeout(t); window[cb] = function(){}; s.remove(); fn(arg); };
+    const t = setTimeout(() => done(reject, new Error("timeout")), 12000);
+    window[cb] = res => {
+      if (!res || res.status === "error" || !res.table) done(reject, new Error("sheet"));
+      else done(resolve, res.table);
+    };
+    s.onerror = () => done(reject, new Error("blocked"));
+    s.src = "https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?tqx=out:json;responseHandler:" + cb +
+            "&headers=1" + where + "&t=" + Date.now();
+    document.head.appendChild(s);
+  });
+}
+const cellText = c => c == null ? "" : String(c.f != null ? c.f : (c.v == null ? "" : c.v)).trim();
+const BULAN = ["jan","feb","mar","apr","mei","jun","jul","agu","sep","okt","nov","des"];
+function cellDate(c){
+  if (!c || c.v == null) return null;
+  const v = String(c.v).trim();
+  let m = v.match(/^Date\(([\d,\s]+)\)$/);
+  if (m) { const n = m[1].split(",").map(Number); return new Date(n[0], n[1] || 0, n[2] || 1, n[3] || 0, n[4] || 0, n[5] || 0); }
+  m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);          // 26/11/2026 14:05:00
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  m = v.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);                                             // 30 Maret 2026
+  if (m) { const b = BULAN.indexOf(m[2].slice(0, 3).toLowerCase()); if (b >= 0) return new Date(+m[3], b, +m[1]); }
+  return null;
+}
+function finder(table){
+  const labels = table.cols.map(c => (c.label || "").trim());
+  return (re, not) => labels.findIndex(l => re.test(l) && !(not && not.test(l)));
+}
+
+const RE_ORG = /instansi|asal|organisasi|lembaga|perusahaan|opd|dinas|kantor|institusi/i;
+function mapGuests(table){
+  const find = finder(table);
+  const iTime = find(/cap waktu|timestamp|waktu|tanggal/i);
+  let iName = find(/nama|name/i, RE_ORG); if (iName < 0) iName = 1;
+  const iOrg = find(RE_ORG), iSvc = find(/layanan/i);
+  const out = [];
+  for (const r of table.rows || []) {
+    const c = r.c || [];
+    const when = iTime >= 0 ? cellDate(c[iTime]) : null;
+    if (!when) continue;                                   // baris tanpa tanggal yang terbaca tidak dihitung
+    const svc = iSvc >= 0 ? cellText(c[iSvc]) : "";
+    const cat = CATS.find(k => !k.cocok || k.cocok.test(svc)).key;
+    out.push({ name: cellText(c[iName]), org: iOrg >= 0 ? cellText(c[iOrg]) : "", when, cat });
+  }
+  return out.sort((a, b) => a.when - b.when);
+}
+
+function mapMedia(table){
+  const find = finder(table);
+  const iUrl = find(/url|link|tautan/i);
+  if (iUrl < 0) return [];
+  const iType = find(/jenis|tipe|type/i), iDur = find(/durasi|detik|lama|duration/i), iCap = find(/keterangan|judul|caption|teks/i);
+  const out = [];
+  for (const r of table.rows || []) {
+    const c = r.c || [];
+    const url = cellText(c[iUrl]);
+    if (!/^https?:\/\//i.test(url)) continue;
+    const type = iType >= 0 ? cellText(c[iType]) : "";
+    const sec = iDur >= 0 && c[iDur] ? parseFloat(c[iDur].v) : NaN;
+    out.push(Object.assign(classify(url, type), {
+      seconds: sec > 0 ? sec : 0,
+      caption: iCap >= 0 ? cellText(c[iCap]) : ""
+    }));
+  }
+  return out;
+}
+function classify(url, type){
+  const isVideo = /video/i.test(type);
+  let m = url.match(/(?:youtube\.com\/(?:watch\?.*?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  if (m) return { kind: "youtube", id: m[1] };
+  m = url.match(/drive\.google\.com\/.*?(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  if (m) return isVideo ? { kind: "drivevideo", id: m[1] }
+                        : { kind: "image", url: "https://drive.google.com/thumbnail?id=" + m[1] + "&sz=w2000",
+                            alt: "https://lh3.googleusercontent.com/d/" + m[1] + "=w2000" };
+  if (isVideo || /\.(mp4|webm|ogv|mov|m4v)(\?|#|$)/i.test(url)) return { kind: "video", url };
+  return { kind: "image", url };
+}
+
+/* ---------- Kotak antrian ---------- */
+let guests = [], lastSeen = null, soundOn = false;
+const pad = n => String(n).padStart(3, "0");
+const hhmm = d => d.toLocaleTimeString("id-ID", {hour:"2-digit", minute:"2-digit", hour12:false});
+
+function buildBoxes(){
+  const wrap = $("boxes"); wrap.textContent = "";
+  for (const k of CATS) {
+    const a = document.createElement("article"); a.className = "q"; a.id = "q-" + k.key;
+    const h = document.createElement("div"); h.className = "qh";
+    const hb = document.createElement("b"); hb.textContent = k.name;
+    const hs = document.createElement("span"); hs.textContent = k.desc;
+    h.append(hb, hs);
+    const n = document.createElement("div"); n.className = "qn";
+    const num = document.createElement("span"); num.className = "num"; num.textContent = "000";
+    n.append(num);
+    const f = document.createElement("div"); f.className = "qf";
+    const last = document.createElement("div"); last.className = "last";
+    const lb = document.createElement("b"), ls = document.createElement("span");
+    last.append(lb, ls);
+    const today = document.createElement("div"); today.className = "today";
+    f.append(last, today);
+    a.append(h, n, f); wrap.append(a);
+  }
+}
+function render(){
+  const now = new Date(), y = now.getFullYear(), mo = now.getMonth(), day = now.toDateString();
+  $("month").textContent = now.toLocaleDateString("id-ID", {month:"long", year:"numeric"});
+  for (const k of CATS) {
+    const list = guests.filter(g => g.cat === k.key && g.when.getFullYear() === y && g.when.getMonth() === mo);
+    const box = $("q-" + k.key);
+    box.querySelector(".num").textContent = pad(list.length);
+    const last = list[list.length - 1];
+    box.querySelector(".last b").textContent = last ? (last.name || "Tamu") : "Belum ada tamu bulan ini";
+    box.querySelector(".last span").textContent = last ? last.org : "";
+    box.querySelector(".today").textContent = "Hari ini " + list.filter(g => g.when.toDateString() === day).length;
+  }
+}
+function applyGuests(list){
+  guests = list;
+  const newest = list.length ? list[list.length - 1].when : null;
+  const fresh = lastSeen ? list.filter(g => g.when > lastSeen) : [];
+  if (newest && (!lastSeen || newest > lastSeen)) lastSeen = newest;
+  else if (!lastSeen) lastSeen = new Date();
+  render();
+  fresh.slice(-3).forEach((g, i) => setTimeout(() => announce(g), i * 7000));
+}
+
+/* ---------- Bunyi panggil ---------- */
+let actx = null;
+function chime(){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    [[659.25, 0], [523.25, .45]].forEach(([f, at]) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + at;
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+      o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + 1.2);
+    });
+  } catch(e){}
+}
+function announce(g){
+  const box = $("q-" + g.cat);
+  box.classList.remove("ring"); void box.offsetWidth; box.classList.add("ring");
+  if (!soundOn) return;
+  chime();
+  try {
+    if ("speechSynthesis" in window) {
+      const k = CATS.find(x => x.key === g.cat);
+      const u = new SpeechSynthesisUtterance("Selamat datang, " + (g.name || "tamu") + (g.org ? ", dari " + g.org : "") + ". Layanan " + k.name + ".");
+      u.lang = "id-ID"; u.rate = 0.95;
+      setTimeout(() => speechSynthesis.speak(u), 1300);
+    }
+  } catch(e){}
+}
+
+/* ---------- Slideshow ---------- */
+let slides = [], slidesKey = "", si = -1, slideTimer = null, curEl = null, curMedia = null, ytReady = null, failStreak = 0;
+
+function note(title, html){ return { kind: "note", title, html }; }
+const HELP_SLIDES = [
+  note("Slideshow diatur dari Google Sheet",
+       "Tambahkan tab bernama <code>Media</code> dengan kolom <code>URL</code>, <code>Jenis</code>, <code>Durasi</code>, dan <code>Keterangan</code>. Satu baris untuk satu gambar atau video."),
+  note("Gambar dan foto",
+       "Tempel link gambar biasa atau link berbagi Google Drive di kolom <code>URL</code>. File Drive harus dibagikan ke siapa saja yang memiliki link."),
+  note("Video",
+       "Tempel link YouTube atau link file <code>.mp4</code>. Video diputar sampai selesai, lalu slide berikutnya tampil.")
+];
+
+function setSlides(list){
+  const key = JSON.stringify(list);
+  if (key === slidesKey) return;
+  slidesKey = key; slides = list; si = -1; failStreak = 0;
+  nextSlide();
+}
+function slideFailed(el){
+  if (el !== curEl) return;
+  failStreak++;
+  if (failStreak >= slides.length) {
+    clearTimeout(slideTimer);
+    showSlide(note("Media belum bisa ditampilkan", "Periksa link di tab <code>Media</code> dan pastikan filenya dibagikan ke siapa saja yang memiliki link."), true);
+    return;
+  }
+  nextSlide();
+}
+function nextSlide(){
+  clearTimeout(slideTimer);
+  if (!slides.length) return;
+  si = (si + 1) % slides.length;
+  showSlide(slides[si]);
+}
+function ensureYT(){
+  if (ytReady) return ytReady;
+  ytReady = new Promise((res, rej) => {
+    window.onYouTubeIframeAPIReady = () => res();
+    const s = document.createElement("script");
+    s.src = "https://www.youtube.com/iframe_api"; s.onerror = () => rej(new Error("yt"));
+    document.head.appendChild(s);
+    setTimeout(() => rej(new Error("yt-timeout")), 10000);
+  });
+  return ytReady;
+}
+function showSlide(s, hold){
+  const el = document.createElement("div");
+  el.className = "slide";
+  let ms = (s.seconds || cfg.imageSeconds) * 1000;
+  curMedia = null;
+  const ok = () => { if (el === curEl) failStreak = 0; };
+
+  if (s.kind === "note") {
+    el.classList.add("note");
+    const h = document.createElement("h2"); h.textContent = s.title;
+    const p = document.createElement("p"); p.innerHTML = s.html;   // teks bawaan halaman, bukan dari Sheet
+    el.append(h, p);
+    ms = Math.max(ms, 9000);
+  } else if (s.kind === "image") {
+    const img = new Image();
+    img.alt = s.caption || "";
+    img.onload = ok;
+    img.onerror = () => { if (s.alt && img.src !== s.alt) img.src = s.alt; else slideFailed(el); };
+    img.src = s.url; el.append(img);
+  } else if (s.kind === "video") {
+    const v = document.createElement("video");
+    v.autoplay = true; v.playsInline = true; v.muted = !soundOn; v.src = s.url;
+    v.onplaying = ok;
+    v.onended = () => { if (el === curEl) nextSlide(); };
+    v.onerror = () => slideFailed(el);
+    el.append(v); curMedia = { video: v };
+    ms = s.seconds ? s.seconds * 1000 : 20 * 60000;
+  } else if (s.kind === "youtube") {
+    const box = document.createElement("div"); box.className = "yt"; el.append(box);
+    ms = s.seconds ? s.seconds * 1000 : 30 * 60000;
+    ensureYT().then(() => {
+      if (el !== curEl) return;
+      const player = new YT.Player(box, {
+        width: "100%", height: "100%", videoId: s.id,
+        playerVars: { autoplay: 1, mute: soundOn ? 0 : 1, controls: 0, rel: 0, playsinline: 1 },
+        events: {
+          onReady: e => { if (!soundOn) e.target.mute(); e.target.playVideo(); },
+          onStateChange: e => { if (e.data === 1) ok(); if (e.data === 0 && el === curEl) nextSlide(); },
+          onError: () => slideFailed(el)
+        }
+      });
+      curMedia = { yt: player };
+    }).catch(() => slideFailed(el));
+  } else if (s.kind === "drivevideo") {
+    const f = document.createElement("iframe");
+    f.src = "https://drive.google.com/file/d/" + s.id + "/preview"; f.allow = "autoplay; fullscreen";
+    el.append(f);
+    ms = (s.seconds || 30) * 1000;
+  }
+
+  $("stage").append(el);
+  const old = curEl; curEl = el;
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
+  if (old) { old.classList.remove("on"); setTimeout(() => old.remove(), 900); }
+  $("caption").textContent = s.caption || "";
+  const dots = $("dots"); dots.textContent = "";
+  if (!hold && slides.length > 1 && slides.length <= 20) slides.forEach((_, i) => {
+    const d = document.createElement("i"); if (i === si) d.className = "on"; dots.append(d);
+  });
+  clearTimeout(slideTimer);
+  if (!hold) slideTimer = setTimeout(nextSlide, ms);
+}
+
+/* ---------- Jalan ---------- */
+let timers = [];
+function setStatus(cls, text){ $("status").className = "status " + cls; $("statusText").textContent = text; }
+
+function start(){
+  timers.forEach(clearInterval); timers = [];
+  guests = []; lastSeen = null;
+  document.title = "Layar " + cfg.title + (cfg.subtitle ? " " + cfg.subtitle : "");
+  $("title").textContent = cfg.title;
+  $("subtitle").textContent = cfg.subtitle;
+  buildBoxes(); render();
+
+  const ref = sheetRef(cfg.sheet);
+  if (!ref.id) {
+    setStatus("err", "Link Google Sheet belum diisi. Buka Pengaturan.");
+    setSlides(HELP_SLIDES);
+    return;
+  }
+  setStatus("", "Menghubungkan ke Google Sheet…");
+  const loadGuests = async () => {
+    try {
+      applyGuests(mapGuests(await gviz(ref.id, ref.gid ? "&gid=" + ref.gid : "")));
+      setStatus("ok", "Terhubung. Diperbarui " + hhmm(new Date()));
+    } catch(e) {
+      setStatus("err", "Google Sheet tidak terbaca. Periksa link dan akses berbaginya.");
+    }
+  };
+  const loadMedia = async () => {
+    try {
+      const list = mapMedia(await gviz(ref.id, "&sheet=" + encodeURIComponent(cfg.mediaTab)));
+      setSlides(list.length ? list : HELP_SLIDES);
+    } catch(e) {
+      if (!slides.length) setSlides(HELP_SLIDES);
+    }
+  };
+  loadGuests(); loadMedia();
+  timers.push(setInterval(loadGuests, Math.max(5, cfg.refreshSeconds) * 1000));
+  timers.push(setInterval(loadMedia, 120000));
+}
+
+/* ---------- Tombol ---------- */
+$("btnSound").addEventListener("click", () => {
+  soundOn = !soundOn;
+  const b = $("btnSound");
+  b.setAttribute("aria-pressed", soundOn); b.textContent = soundOn ? "Suara: hidup" : "Suara: mati";
+  if (soundOn) chime();
+  if (curMedia && curMedia.video) curMedia.video.muted = !soundOn;
+  if (curMedia && curMedia.yt && curMedia.yt.mute) { soundOn ? curMedia.yt.unMute() : curMedia.yt.mute(); }
+});
+$("btnFull").addEventListener("click", () => {
+  const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  if (p && p.catch) p.catch(() => {});
+});
+$("btnSet").addEventListener("click", () => {
+  $("sSheet").value = cfg.sheet; $("sMedia").value = cfg.mediaTab;
+  $("sTitle").value = cfg.title; $("sSub").value = cfg.subtitle;
+  $("sImg").value = cfg.imageSeconds; $("sRef").value = cfg.refreshSeconds;
+  $("dlg").showModal();
+});
+$("btnCancel").addEventListener("click", () => $("dlg").close());
+$("form").addEventListener("submit", () => {
+  cfg = Object.assign({}, cfg, {
+    sheet: $("sSheet").value.trim(), mediaTab: $("sMedia").value.trim() || "Media",
+    title: $("sTitle").value.trim() || DEFAULTS.title, subtitle: $("sSub").value.trim(),
+    imageSeconds: Math.min(120, Math.max(3, parseFloat($("sImg").value) || DEFAULTS.imageSeconds)),
+    refreshSeconds: Math.min(600, Math.max(5, parseFloat($("sRef").value) || DEFAULTS.refreshSeconds))
+  });
+  try { localStorage.setItem(STORE, JSON.stringify(cfg)); } catch(e){}
+  slidesKey = "";
+  start();
+});
+
+/* Sembunyikan tombol dan kursor saat layar dibiarkan */
+let idleT = null;
+function wake(){ document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(() => { if (!$("dlg").open) document.body.classList.add("idle"); }, 5000); }
+["mousemove", "keydown", "pointerdown"].forEach(e => addEventListener(e, wake)); wake();
+setInterval(render, 60000);   // agar pergantian hari dan bulan ikut terbaca
+
+start();
+</script>
+</body>
+</html>
